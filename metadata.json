@@ -1,0 +1,6 @@
+{
+  "name": "Phoenix Lounge Kabwe",
+  "description": "High-performance digital lounge hub for Phoenix Lounge at 12 Freedom Way, Kabwe. Instant mobile ordering, mobile money checkout, VIP booth reservations, DJ deck & Table of the Night stream.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

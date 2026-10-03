@@ -1,0 +1,172 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "Lounge table or VIP booth customer order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "order_ref": { "type": "string", "maxLength": 32 },
+        "table_booth_number": { "type": "string", "maxLength": 64 },
+        "customer_name": { "type": "string", "maxLength": 100 },
+        "customer_phone": { "type": "string", "maxLength": 32 },
+        "payment_method": { "type": "string", "enum": ["airtel", "mtn", "zamtel", "cash"] },
+        "payment_status": { "type": "string", "enum": ["unpaid", "submitted", "verified"] },
+        "order_status": { "type": "string", "enum": ["pending", "confirmed", "dropped"] },
+        "total_amount_zmw": { "type": "number" },
+        "items": { "type": "array" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "created_at": { "type": "string", "maxLength": 64 },
+        "confirmed_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "order_ref", "table_booth_number", "customer_name", "payment_method", "total_amount_zmw", "created_at"]
+    },
+    "DJRequest": {
+      "title": "DJRequest",
+      "description": "Live DJ song request from lounge patron",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "customer_name": { "type": "string", "maxLength": 100 },
+        "booth_table": { "type": "string", "maxLength": 64 },
+        "song_title": { "type": "string", "maxLength": 150 },
+        "artist": { "type": "string", "maxLength": 150 },
+        "personal_note": { "type": "string", "maxLength": 300 },
+        "created_at": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["queued", "spinning", "played", "dismissed"] }
+      },
+      "required": ["id", "customer_name", "song_title", "artist", "created_at"]
+    },
+    "DJShoutout": {
+      "title": "DJShoutout",
+      "description": "Celebrant birthday shoutout or champagne fanfare",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "celebrant_name": { "type": "string", "maxLength": 100 },
+        "booth_number": { "type": "string", "maxLength": 64 },
+        "customized_text": { "type": "string", "maxLength": 400 },
+        "song_selection": { "type": "string", "maxLength": 150 },
+        "package_type": { "type": "string", "enum": ["standard", "sparkler_vip", "champagne_fanfare"] },
+        "created_at": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["queued", "announced", "dismissed"] }
+      },
+      "required": ["id", "celebrant_name", "customized_text", "created_at"]
+    },
+    "TimelinePost": {
+      "title": "TimelinePost",
+      "description": "Table of the Night 10-hour photo gallery post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "uploader_name": { "type": "string", "maxLength": 100 },
+        "table_booth": { "type": "string", "maxLength": 64 },
+        "caption": { "type": "string", "maxLength": 280 },
+        "image_url": { "type": "string", "maxLength": 500000 },
+        "reactions": { "type": "object" },
+        "created_at": { "type": "string", "maxLength": 64 },
+        "expires_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "uploader_name", "caption", "created_at"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Menu catalog item and pricing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "description": { "type": "string", "maxLength": 500 },
+        "image_url": { "type": "string", "maxLength": 500000 },
+        "in_stock": { "type": "boolean" },
+        "is_visible": { "type": "boolean" }
+      },
+      "required": ["id", "name", "category", "price"]
+    },
+    "EventItem": {
+      "title": "EventItem",
+      "description": "Upcoming sports screening or theme night",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "category": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 200 },
+        "subtitle": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "tag": { "type": "string", "maxLength": 100 },
+        "badgeColor": { "type": "string", "maxLength": 100 },
+        "image_url": { "type": "string", "maxLength": 500000 },
+        "is_active": { "type": "boolean" }
+      },
+      "required": ["id", "title", "date"]
+    },
+    "VIPBooth": {
+      "title": "VIPBooth",
+      "description": "VIP Lounge Booth reservation and minimum spend configuration",
+      "type": "object",
+      "properties": {
+        "booth_code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 100 },
+        "tier": { "type": "string", "enum": ["vip", "vvip_presidential"] },
+        "capacity": { "type": "number" },
+        "min_spend": { "type": "number" },
+        "is_reserved": { "type": "boolean" },
+        "reserved_by": { "type": "string", "maxLength": 100 },
+        "contact_phone": { "type": "string", "maxLength": 50 },
+        "reserved_at": { "type": "string", "maxLength": 64 },
+        "hold_expires_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["booth_code", "name", "capacity", "min_spend"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Global Phoenix Lounge venue settings",
+      "type": "object",
+      "properties": {
+        "active_ticker": { "type": "string", "maxLength": 300 },
+        "ad_interval_seconds": { "type": "number" },
+        "ad_enabled": { "type": "boolean" },
+        "active_ad": { "type": "object" },
+        "venue_contacts": { "type": "object" },
+        "momo_gateways": { "type": "object" }
+      }
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": "#/entities/Order",
+      "description": "Live customer orders from lounge tables and VIP booths"
+    },
+    "/dj_requests/{requestId}": {
+      "schema": "#/entities/DJRequest",
+      "description": "Live DJ song requests sent from patrons"
+    },
+    "/dj_shoutouts/{shoutoutId}": {
+      "schema": "#/entities/DJShoutout",
+      "description": "VIP birthday sparkler fanfare & celebrant shoutouts"
+    },
+    "/timeline/{postId}": {
+      "schema": "#/entities/TimelinePost",
+      "description": "10-hour Table of the Night photo gallery posts"
+    },
+    "/menu_items/{itemId}": {
+      "schema": "#/entities/MenuItem",
+      "description": "Product catalog and live pricing"
+    },
+    "/events/{eventId}": {
+      "schema": "#/entities/EventItem",
+      "description": "Upcoming sports screenings and theme night schedule"
+    },
+    "/vip_booths/{boothCode}": {
+      "schema": "#/entities/VIPBooth",
+      "description": "VIP Booth configurations and minimum spend values"
+    },
+    "/system_config/general": {
+      "schema": "#/entities/SystemConfig",
+      "description": "Global venue configuration and ad campaigns"
+    }
+  }
+}

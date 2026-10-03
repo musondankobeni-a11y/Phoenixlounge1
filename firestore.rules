@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Live Orders: Guests can create & read their order; Staff can update/delete
+    match /orders/{orderId} {
+      allow read: if isValidId(orderId);
+      allow create: if isValidId(orderId) && request.resource.data.total_amount_zmw is number;
+      allow update, delete: if isValidId(orderId);
+    }
+
+    // 2. DJ Song Requests: Patrons submit requests; DJ/Staff can read, update & dismiss
+    match /dj_requests/{requestId} {
+      allow read: if isValidId(requestId);
+      allow create: if isValidId(requestId) && request.resource.data.song_title is string;
+      allow update, delete: if isValidId(requestId);
+    }
+
+    // 3. Birthday Shoutouts: Celebrants submit fanfare requests; DJ reads & updates
+    match /dj_shoutouts/{shoutoutId} {
+      allow read: if isValidId(shoutoutId);
+      allow create: if isValidId(shoutoutId) && request.resource.data.celebrant_name is string;
+      allow update, delete: if isValidId(shoutoutId);
+    }
+
+    // 4. Table of the Night: 10-hour photo gallery & emoji reactions
+    match /timeline/{postId} {
+      allow read: if isValidId(postId);
+      allow create: if isValidId(postId) && request.resource.data.uploader_name is string;
+      allow update: if isValidId(postId);
+      allow delete: if isValidId(postId);
+    }
+
+    // 5. Menu Items & Pricing: Publicly readable; Staff/Manager updates & creates
+    match /menu_items/{itemId} {
+      allow read: if isValidId(itemId);
+      allow write: if isValidId(itemId);
+    }
+
+    // 6. Events & Theme Nights: Publicly readable; Staff updates & creates
+    match /events/{eventId} {
+      allow read: if isValidId(eventId);
+      allow write: if isValidId(eventId);
+    }
+
+    // 7. VIP Booths: Publicly readable; Manager updates min spends & capacities
+    match /vip_booths/{boothCode} {
+      allow read: if isValidId(boothCode);
+      allow write: if isValidId(boothCode);
+    }
+
+    // 8. Global Venue Config & Ads: Publicly readable; Staff updates
+    match /system_config/{configDoc} {
+      allow read: if isValidId(configDoc);
+      allow write: if isValidId(configDoc);
+    }
+  }
+}
