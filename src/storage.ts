@@ -418,23 +418,15 @@ const INITIAL_ORDERS: Order[] = [
   }
 ];
 
-// In-memory + LocalStorage Cache Helpers
-const getStored = <T>(key: string, fallback: T): T => {
-  try {
-    const item = localStorage.getItem(`plk_${key}`);
-    return item ? JSON.parse(item) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const setStored = <T>(key: string, data: T): void => {
-  try {
-    localStorage.setItem(`plk_${key}`, JSON.stringify(data));
-  } catch (err) {
-    console.warn(`Local cache update notice for ${key}`, err);
-  }
-};
+// Cloud Storage State (Strictly Cloud/Memory - No Local Cache Storage)
+let memoryMenu: MenuItem[] = INITIAL_MENU;
+let memoryOrders: Order[] = INITIAL_ORDERS;
+let memoryEvents: EventItem[] = INITIAL_EVENTS;
+let memoryConfig: SystemConfig = INITIAL_CONFIG;
+let memoryBooths: VIPBooth[] = INITIAL_BOOTHS;
+let memoryDJRequests: DJSongRequest[] = INITIAL_DJ_REQUESTS;
+let memoryDJShoutouts: DJBirthdayShoutout[] = INITIAL_DJ_SHOUTOUTS;
+let memoryTimeline: MediaPost[] = INITIAL_TIMELINE;
 
 // Real-Time Event Subscription Listeners
 type Listener<T> = (data: T) => void;
@@ -460,18 +452,16 @@ const notifyTimeline = (data: MediaPost[]) => timelineListeners.forEach(fn => fn
 function initFirestoreSync() {
   testFirestoreConnection();
 
-  // 1. Live Orders sync across 10,000+ guest phones & staff dashboards
+  // 1. Live Orders sync from Cloud Firestore
   try {
     onSnapshot(collection(db, 'orders'), (snapshot) => {
-      if (!snapshot.empty) {
-        const cloudOrders: Order[] = [];
-        snapshot.forEach((d) => {
-          cloudOrders.push(d.data() as Order);
-        });
-        cloudOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setStored('orders', cloudOrders);
-        notifyOrders(cloudOrders);
-      }
+      const cloudOrders: Order[] = [];
+      snapshot.forEach((d) => {
+        cloudOrders.push(d.data() as Order);
+      });
+      cloudOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      memoryOrders = cloudOrders.length > 0 ? cloudOrders : INITIAL_ORDERS;
+      notifyOrders(memoryOrders);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'orders');
     });
@@ -479,18 +469,16 @@ function initFirestoreSync() {
     console.warn('Orders listener setup notice', err);
   }
 
-  // 2. DJ Song Requests live sync to DJ Console
+  // 2. DJ Song Requests live sync from Cloud Firestore
   try {
     onSnapshot(collection(db, 'dj_requests'), (snapshot) => {
-      if (!snapshot.empty) {
-        const requests: DJSongRequest[] = [];
-        snapshot.forEach((d) => {
-          requests.push(d.data() as DJSongRequest);
-        });
-        requests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setStored('dj_requests', requests);
-        notifyDJReq(requests);
-      }
+      const requests: DJSongRequest[] = [];
+      snapshot.forEach((d) => {
+        requests.push(d.data() as DJSongRequest);
+      });
+      requests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      memoryDJRequests = requests.length > 0 ? requests : INITIAL_DJ_REQUESTS;
+      notifyDJReq(memoryDJRequests);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'dj_requests');
     });
@@ -498,18 +486,16 @@ function initFirestoreSync() {
     console.warn('DJ requests listener notice', err);
   }
 
-  // 3. DJ Birthday Shoutouts live sync
+  // 3. DJ Birthday Shoutouts live sync from Cloud Firestore
   try {
     onSnapshot(collection(db, 'dj_shoutouts'), (snapshot) => {
-      if (!snapshot.empty) {
-        const shoutouts: DJBirthdayShoutout[] = [];
-        snapshot.forEach((d) => {
-          shoutouts.push(d.data() as DJBirthdayShoutout);
-        });
-        shoutouts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setStored('dj_shoutouts', shoutouts);
-        notifyDJShout(shoutouts);
-      }
+      const shoutouts: DJBirthdayShoutout[] = [];
+      snapshot.forEach((d) => {
+        shoutouts.push(d.data() as DJBirthdayShoutout);
+      });
+      shoutouts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      memoryDJShoutouts = shoutouts.length > 0 ? shoutouts : INITIAL_DJ_SHOUTOUTS;
+      notifyDJShout(memoryDJShoutouts);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'dj_shoutouts');
     });
@@ -517,7 +503,7 @@ function initFirestoreSync() {
     console.warn('DJ shoutouts listener notice', err);
   }
 
-  // 4. Menu Items & Uploaded Products live catalog on ALL devices (Instant Sub-second Broadcast)
+  // 4. Menu Items & Uploaded Products live catalog from Cloud Firestore
   try {
     onSnapshot(collection(db, 'menu_items'), (snapshot) => {
       if (!snapshot.empty) {
@@ -525,12 +511,14 @@ function initFirestoreSync() {
         snapshot.forEach((d) => {
           items.push(d.data() as MenuItem);
         });
-        setStored('menu', items);
-        notifyMenu(items);
+        memoryMenu = items;
+        notifyMenu(memoryMenu);
       } else {
         INITIAL_MENU.forEach(item => {
           setDoc(doc(db, 'menu_items', item.id), item).catch(() => {});
         });
+        memoryMenu = INITIAL_MENU;
+        notifyMenu(memoryMenu);
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'menu_items');
@@ -539,7 +527,7 @@ function initFirestoreSync() {
     console.warn('Menu listener notice', err);
   }
 
-  // 5. VIP Booths live sync (Minimum spend and capacities across all guests)
+  // 5. VIP Booths live sync from Cloud Firestore
   try {
     onSnapshot(collection(db, 'vip_booths'), (snapshot) => {
       if (!snapshot.empty) {
@@ -547,12 +535,14 @@ function initFirestoreSync() {
         snapshot.forEach((d) => {
           boothsList.push(d.data() as VIPBooth);
         });
-        setStored('booths', boothsList);
-        notifyBooths(boothsList);
+        memoryBooths = boothsList;
+        notifyBooths(memoryBooths);
       } else {
         INITIAL_BOOTHS.forEach(b => {
           setDoc(doc(db, 'vip_booths', b.booth_code), b).catch(() => {});
         });
+        memoryBooths = INITIAL_BOOTHS;
+        notifyBooths(memoryBooths);
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'vip_booths');
@@ -569,12 +559,14 @@ function initFirestoreSync() {
         snapshot.forEach((d) => {
           evs.push(d.data() as EventItem);
         });
-        setStored('events', evs);
-        notifyEvents(evs);
+        memoryEvents = evs;
+        notifyEvents(memoryEvents);
       } else {
         INITIAL_EVENTS.forEach(ev => {
           setDoc(doc(db, 'events', ev.id), ev).catch(() => {});
         });
+        memoryEvents = INITIAL_EVENTS;
+        notifyEvents(memoryEvents);
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'events');
@@ -583,15 +575,16 @@ function initFirestoreSync() {
     console.warn('Events listener notice', err);
   }
 
-  // 7. Global System Config, Phone Numbers & Ad Campaigns live sync
+  // 7. Global System Config live sync
   try {
     onSnapshot(doc(db, 'system_config', 'general'), (docSnap) => {
       if (docSnap.exists()) {
-        const cfg = docSnap.data() as SystemConfig;
-        setStored('config', cfg);
-        notifyConfig(cfg);
+        memoryConfig = docSnap.data() as SystemConfig;
+        notifyConfig(memoryConfig);
       } else {
         setDoc(doc(db, 'system_config', 'general'), INITIAL_CONFIG).catch(() => {});
+        memoryConfig = INITIAL_CONFIG;
+        notifyConfig(memoryConfig);
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, 'system_config/general');
@@ -609,8 +602,8 @@ function initFirestoreSync() {
           posts.push(d.data() as MediaPost);
         });
         posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setStored('timeline', posts);
-        notifyTimeline(posts);
+        memoryTimeline = posts;
+        notifyTimeline(memoryTimeline);
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'timeline');
@@ -672,14 +665,14 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // ORDERS & RECEIPTS (Real-time Cloud Sync)
+  // ORDERS & RECEIPTS (Cloud-First Real-time Sync)
   // -------------------------------------------------------------
   getOrders(): Order[] {
-    return getStored<Order[]>('orders', INITIAL_ORDERS);
+    return memoryOrders;
   },
   
   saveOrders(orders: Order[]): void {
-    setStored('orders', orders);
+    memoryOrders = orders;
     notifyOrders(orders);
   },
 
@@ -687,7 +680,7 @@ export const StorageEngine = {
     const orders = [order, ...this.getOrders()];
     this.saveOrders(orders);
     
-    // Asynchronously push to Cloud Firestore
+    // Push to Cloud Firestore
     setDoc(doc(db, 'orders', order.id), order).catch(err => {
       handleFirestoreError(err, OperationType.CREATE, `orders/${order.id}`);
     });
@@ -724,14 +717,14 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // PRODUCTS & MENU CATALOG (Real-time Cloud Sync for All Devices)
+  // PRODUCTS & MENU CATALOG (Cloud-First Real-time Sync)
   // -------------------------------------------------------------
   getMenu(): MenuItem[] {
-    return getStored<MenuItem[]>('menu', INITIAL_MENU);
+    return memoryMenu;
   },
 
   saveMenu(menu: MenuItem[]): void {
-    setStored('menu', menu);
+    memoryMenu = menu;
     notifyMenu(menu);
   },
 
@@ -743,7 +736,6 @@ export const StorageEngine = {
     const list = [newItem, ...this.getMenu()];
     this.saveMenu(list);
     
-    // Broadcast product upload to Cloud Firestore so all mobile & laptop devices receive it instantly
     setDoc(doc(db, 'menu_items', newItem.id), newItem).catch(err => {
       handleFirestoreError(err, OperationType.CREATE, `menu_items/${newItem.id}`);
     });
@@ -815,14 +807,14 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // UPCOMING SCREENINGS & THEME NIGHTS (Real-time Cloud Sync)
+  // UPCOMING SCREENINGS & THEME NIGHTS (Cloud-First Real-time Sync)
   // -------------------------------------------------------------
   getEvents(): EventItem[] {
-    return getStored<EventItem[]>('events', INITIAL_EVENTS);
+    return memoryEvents;
   },
 
   saveEvents(events: EventItem[]): void {
-    setStored('events', events);
+    memoryEvents = events;
     notifyEvents(events);
   },
 
@@ -861,14 +853,14 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // VIP BOOTHS (Real-time Cloud Sync: Min Spends & Capacities)
+  // VIP BOOTHS (Cloud-First Real-time Sync)
   // -------------------------------------------------------------
   getBooths(): VIPBooth[] {
-    return getStored<VIPBooth[]>('booths', INITIAL_BOOTHS);
+    return memoryBooths;
   },
 
   saveBooths(booths: VIPBooth[]): void {
-    setStored('booths', booths);
+    memoryBooths = booths;
     notifyBooths(booths);
   },
 
@@ -915,14 +907,14 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // DJ CONSOLE QUEUES (Real-time Cloud Sync)
+  // DJ CONSOLE QUEUES (Cloud-First Real-time Sync)
   // -------------------------------------------------------------
   getDJRequests(): DJSongRequest[] {
-    return getStored<DJSongRequest[]>('dj_requests', INITIAL_DJ_REQUESTS);
+    return memoryDJRequests;
   },
 
   saveDJRequests(requests: DJSongRequest[]): void {
-    setStored('dj_requests', requests);
+    memoryDJRequests = requests;
     notifyDJReq(requests);
   },
 
@@ -953,11 +945,11 @@ export const StorageEngine = {
   },
 
   getDJShoutouts(): DJBirthdayShoutout[] {
-    return getStored<DJBirthdayShoutout[]>('dj_shoutouts', INITIAL_DJ_SHOUTOUTS);
+    return memoryDJShoutouts;
   },
 
   saveDJShoutouts(shoutouts: DJBirthdayShoutout[]): void {
-    setStored('dj_shoutouts', shoutouts);
+    memoryDJShoutouts = shoutouts;
     notifyDJShout(shoutouts);
   },
 
@@ -988,23 +980,19 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // TABLE OF THE NIGHT (10-Hour TTL Gallery)
+  // TABLE OF THE NIGHT (Cloud-First Gallery)
   // -------------------------------------------------------------
   getTimeline(): MediaPost[] {
-    const raw = getStored<MediaPost[]>('timeline', INITIAL_TIMELINE);
     const now = Date.now();
-    const active = raw.filter(post => {
+    const active = memoryTimeline.filter(post => {
       const exp = new Date(post.expires_at).getTime();
       return exp > now;
     });
-    if (active.length !== raw.length) {
-      this.saveTimeline(active);
-    }
     return active;
   },
 
   saveTimeline(timeline: MediaPost[]): void {
-    setStored('timeline', timeline);
+    memoryTimeline = timeline;
     notifyTimeline(timeline);
   },
 
@@ -1049,14 +1037,14 @@ export const StorageEngine = {
   },
 
   // -------------------------------------------------------------
-  // SYSTEM CONFIG, VENUE CONTACTS & PHONE NUMBERS
+  // SYSTEM CONFIG & VENUE CONTACTS (Cloud-First)
   // -------------------------------------------------------------
   getConfig(): SystemConfig {
-    return getStored<SystemConfig>('config', INITIAL_CONFIG);
+    return memoryConfig;
   },
 
   saveConfig(cfg: SystemConfig): void {
-    setStored('config', cfg);
+    memoryConfig = cfg;
     notifyConfig(cfg);
     setDoc(doc(db, 'system_config', 'general'), cfg, { merge: true }).catch(err => {
       handleFirestoreError(err, OperationType.WRITE, 'system_config/general');
